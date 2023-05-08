@@ -1,0 +1,29 @@
+name: Publish package to GitHub Packages
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@remla23'
+      - run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION:1}"
+          npm version --no-git-tag-version "$VERSION"
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git commit -am "Update package.json version to $VERSION"
+          git push origin HEAD:main
+      - run: npm run build
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
