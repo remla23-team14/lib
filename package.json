@@ -1,6 +1,6 @@
 {
   "name": "@remla23-team14/lib",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Can request its version",
   "main": "dist/index.ts",
   "types": "dist/index.d.ts",
