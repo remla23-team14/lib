@@ -1,7 +1,7 @@
 name: Publish package to GitHub Packages
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,15 +15,30 @@ jobs:
           node-version: '16.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@remla23'
-      - run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION:1}"
-          npm version --no-git-tag-version "$VERSION"
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
-          git commit -am "Update package.json version to $VERSION"
-          git push origin HEAD:main
+      - name: 'Update version in package.json'
+        id: 'updater'
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG:1}"
+          CURRENT_VERSION=$(cat package.json | jq -r '.version')
+          if [ "$VERSION" = "$CURRENT_VERSION" ]; then
+            echo "updated=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "Updating package.json version to $VERSION"
+            npm version --no-git-tag-version "$VERSION"
+            git config user.email "action@github.com"
+            git config user.name "GitHub Action"
+            git commit -am "Update package.json version to $VERSION"
+            git push origin HEAD:main
+            gh release delete "$TAG" --cleanup-tag -y
+            gh release create "$TAG" --title "$TAG" --target main
+            echo "updated=1" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: npm run build
+        if: ${{ steps.updater.outputs.updated == '1' }}
       - run: npm publish
+        if: ${{ steps.updater.outputs.updated == '1' }}
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
